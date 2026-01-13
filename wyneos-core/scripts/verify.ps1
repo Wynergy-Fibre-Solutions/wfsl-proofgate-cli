@@ -69,13 +69,16 @@ function Get-NextRunPath {
     return (Join-Path $Root $name)
 }
 
-# Evidence root only. This is the only allowed write boundary.
+# Evidence root is the only allowed write boundary
 New-DirectorySafe $EvidenceRoot
 
 $timestamp = (Get-Date).ToString("o")
 
-# Capture environment without assuming any subsystem is functional.
-$osInfo = Safe "Win32_OperatingSystem" { Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, BuildNumber }
+# Environment capture (hostile-safe)
+$osInfo = Safe "Win32_OperatingSystem" {
+    Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, BuildNumber
+}
+
 $psInfo = [ordered]@{
     edition = $PSVersionTable.PSEdition
     version = $PSVersionTable.PSVersion.ToString()
@@ -86,8 +89,9 @@ $adminCheck = Safe "IsAdministrator" {
     ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
-# Execution policy introspection is known to fail on hostile platforms. Capture as evidence.
-$execPolicy = Safe "Get-ExecutionPolicy" { Get-ExecutionPolicy -List }
+$execPolicy = Safe "Get-ExecutionPolicy" {
+    Get-ExecutionPolicy -List
+}
 
 $environment = [ordered]@{
     timestamp = $timestamp
@@ -100,7 +104,8 @@ $environment = [ordered]@{
 $environmentPath = Join-Path $EvidenceRoot "environment.json"
 Write-Json -Object $environment -Path $environmentPath
 
-$executionContext = [ordered]@{
+# IMPORTANT: avoid collision with PowerShell automatic variable $ExecutionContext
+$wfslExecutionContext = [ordered]@{
     timestamp = $timestamp
     invocation = $MyInvocation.Line
     scriptPath = $MyInvocation.MyCommand.Path
@@ -108,7 +113,7 @@ $executionContext = [ordered]@{
 }
 
 $executionContextPath = Join-Path $EvidenceRoot "execution-context.json"
-Write-Json -Object $executionContext -Path $executionContextPath
+Write-Json -Object $wfslExecutionContext -Path $executionContextPath
 
 # Run artefact
 $runPath = Get-NextRunPath -Root $EvidenceRoot
@@ -148,5 +153,6 @@ $runEvidence = [ordered]@{
 
 Write-Json -Object $runEvidence -Path $runPath
 
-Write-Output "WFSL verification run completed. Evidence written to: $EvidenceRoot"
+Write-Output "WFSL verification run completed."
+Write-Output "Evidence root: $EvidenceRoot"
 Write-Output "Run artefact: $runPath"
