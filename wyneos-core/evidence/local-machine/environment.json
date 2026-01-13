@@ -1,0 +1,20 @@
+﻿{
+    "timestamp":  "2026-01-13T14:58:20.2396221+00:00",
+    "user":  "WFSL",
+    "os":  {
+               "ok":  true,
+               "name":  "Win32_OperatingSystem",
+               "value":  {
+                             "Caption":  "Microsoft Windows 11 Pro",
+                             "Version":  "10.0.26200",
+                             "BuildNumber":  "26200"
+                         },
+               "error":  null
+           },
+    "isAdmin":  {
+                    "ok":  true,
+                    "name":  "IsAdministrator",
+                    "value":  false,
+                    "error":  null
+                }
+}
