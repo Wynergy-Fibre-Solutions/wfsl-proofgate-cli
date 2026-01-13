@@ -11,24 +11,6 @@ function New-DirectorySafe {
     }
 }
 
-function Get-Hash {
-    param([string]$Path)
-    if (Test-Path $Path) {
-        return (Get-FileHash -Algorithm SHA256 -Path $Path).Hash
-    }
-    return $null
-}
-
-function Write-Json {
-    param(
-        [Parameter(Mandatory=$true)]$Object,
-        [Parameter(Mandatory=$true)][string]$Path,
-        [int]$Depth = 8
-    )
-    $json = $Object | ConvertTo-Json -Depth $Depth
-    Set-Content -Encoding UTF8 -Path $Path -Value $json
-}
-
 function Safe {
     param(
         [Parameter(Mandatory=$true)][string]$Name,
@@ -54,6 +36,22 @@ function Safe {
     }
 }
 
+function Try-Hash {
+    param([string]$Path)
+    return Safe "Get-FileHash" {
+        (Get-FileHash -Algorithm SHA256 -Path $Path).Hash
+    }
+}
+
+function Write-Json {
+    param(
+        [Parameter(Mandatory=$true)]$Object,
+        [Parameter(Mandatory=$true)][string]$Path,
+        [int]$Depth = 8
+    )
+    $Object | ConvertTo-Json -Depth $Depth | Set-Content -Encoding UTF8 $Path
+}
+
 function Get-NextRunPath {
     param([string]$Root)
     $existing = Get-ChildItem -Path $Root -Filter "run-*.json" -ErrorAction SilentlyContinue
@@ -64,24 +62,15 @@ function Get-NextRunPath {
             if ($n -gt $max) { $max = $n }
         }
     }
-    $next = $max + 1
-    $name = "run-{0}.json" -f $next.ToString("000")
-    return (Join-Path $Root $name)
+    return (Join-Path $Root ("run-{0}.json" -f ($max + 1).ToString("000")))
 }
 
-# Evidence root is the only allowed write boundary
+# Write boundary
 New-DirectorySafe $EvidenceRoot
-
 $timestamp = (Get-Date).ToString("o")
 
-# Environment capture (hostile-safe)
 $osInfo = Safe "Win32_OperatingSystem" {
     Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, BuildNumber
-}
-
-$psInfo = [ordered]@{
-    edition = $PSVersionTable.PSEdition
-    version = $PSVersionTable.PSVersion.ToString()
 }
 
 $adminCheck = Safe "IsAdministrator" {
@@ -96,7 +85,6 @@ $execPolicy = Safe "Get-ExecutionPolicy" {
 $environment = [ordered]@{
     timestamp = $timestamp
     user = $env:USERNAME
-    powershell = $psInfo
     os = $osInfo
     isAdmin = $adminCheck
 }
@@ -104,7 +92,6 @@ $environment = [ordered]@{
 $environmentPath = Join-Path $EvidenceRoot "environment.json"
 Write-Json -Object $environment -Path $environmentPath
 
-# IMPORTANT: avoid collision with PowerShell automatic variable $ExecutionContext
 $wfslExecutionContext = [ordered]@{
     timestamp = $timestamp
     invocation = $MyInvocation.Line
@@ -115,44 +102,27 @@ $wfslExecutionContext = [ordered]@{
 $executionContextPath = Join-Path $EvidenceRoot "execution-context.json"
 Write-Json -Object $wfslExecutionContext -Path $executionContextPath
 
-# Run artefact
 $runPath = Get-NextRunPath -Root $EvidenceRoot
 
 $runEvidence = [ordered]@{
     timestamp = $timestamp
     status = "completed"
-    doctrine = [ordered]@{
-        nonDestructive = $true
-        explicitInvocation = $true
-        noRemediation = $true
-        platformSkepticism = $true
-        failuresCapturedAsData = $true
+    findings = [ordered]@{
+        executionPolicy = $execPolicy
+        hashingCapability = Try-Hash $environmentPath
     }
-    notes = "Verification harness executed. Introspection failures captured as evidence. No host mutation performed."
     outputs = [ordered]@{
         environment = [ordered]@{
             path = $environmentPath
-            sha256 = (Get-Hash $environmentPath)
         }
         executionContext = [ordered]@{
             path = $executionContextPath
-            sha256 = (Get-Hash $executionContextPath)
-        }
-    }
-    findings = [ordered]@{
-        executionPolicyIntrospection = [ordered]@{
-            ok = $execPolicy.ok
-            error = $execPolicy.error
-        }
-        osIntrospection = [ordered]@{
-            ok = $osInfo.ok
-            error = $osInfo.error
         }
     }
 }
 
 Write-Json -Object $runEvidence -Path $runPath
 
-Write-Output "WFSL verification run completed."
+Write-Output "WFSL verification run completed"
 Write-Output "Evidence root: $EvidenceRoot"
 Write-Output "Run artefact: $runPath"
