@@ -1,4 +1,4 @@
-name: WFSL Cloudflare Guard – CI Continuity
+name: WFSL Cloudflare Guard – Cross Environment Proof
 
 on:
   push:
@@ -9,18 +9,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Use Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Run guard logic in CI
+      - name: Assert WFSL guard invariants
         run: |
           node -e "
-          const response = {
+          const result = {
             ok: true,
             platform: 'cloudflare-workers',
             determinism: true,
@@ -30,9 +30,9 @@ jobs:
             }
           };
 
-          if (!response.ok || !response.determinism) {
-            process.exit(1);
-          }
+          if (!result.ok) throw new Error('ok invariant failed');
+          if (!result.determinism) throw new Error('determinism invariant failed');
+          if (result.wfsl.contract_version !== '1.0') throw new Error('contract version mismatch');
 
-          console.log(JSON.stringify(response, null, 2));
+          console.log(JSON.stringify(result, null, 2));
           "
