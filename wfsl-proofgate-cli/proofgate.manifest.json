@@ -1,0 +1,5 @@
+{
+  "messageFile": "./message.txt",
+  "signatureFile": "./signature.b64",
+  "publicKeyFile": "./public.key.b64"
+}
