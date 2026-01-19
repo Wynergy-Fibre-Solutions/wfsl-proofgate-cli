@@ -1,0 +1,32 @@
+﻿{
+    "timestamp":  "2026-01-13T15:09:46.3672245+00:00",
+    "status":  "completed",
+    "findings":  {
+                     "executionPolicy":  {
+                                             "ok":  false,
+                                             "name":  "Get-ExecutionPolicy",
+                                             "value":  null,
+                                             "error":  {
+                                                           "type":  "System.Management.Automation.CommandNotFoundException",
+                                                           "message":  "The \u0027Get-ExecutionPolicy\u0027 command was found in the module \u0027Microsoft.PowerShell.Security\u0027, but the module could not be loaded. For more information, run \u0027Import-Module Microsoft.PowerShell.Security\u0027."
+                                                       }
+                                         },
+                     "hashingCapability":  {
+                                               "ok":  false,
+                                               "name":  "Get-FileHash",
+                                               "value":  null,
+                                               "error":  {
+                                                             "type":  "System.Management.Automation.CommandNotFoundException",
+                                                             "message":  "The term \u0027Get-FileHash\u0027 is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again."
+                                                         }
+                                           }
+                 },
+    "outputs":  {
+                    "environment":  {
+                                        "path":  "evidence\\local-machine\\environment.json"
+                                    },
+                    "executionContext":  {
+                                             "path":  "evidence\\local-machine\\execution-context.json"
+                                         }
+                }
+}

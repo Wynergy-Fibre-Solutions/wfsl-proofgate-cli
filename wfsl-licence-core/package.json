@@ -1,0 +1,20 @@
+{
+  "name": "wfsl-licence-core",
+  "version": "0.1.0",
+  "description": "WFSL licence verification and authority primitives.",
+  "license": "MIT",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "bin": {
+    "wfsl-licence-issuer": "dist/issuer-cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "demo:issuer:help": "node dist/issuer-cli.js --help"
+  },
+  "dependencies": {}
+}

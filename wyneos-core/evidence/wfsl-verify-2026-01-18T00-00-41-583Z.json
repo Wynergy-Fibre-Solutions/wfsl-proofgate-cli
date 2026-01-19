@@ -1,0 +1,44 @@
+{
+  "wfsl_verification": "WFSL-LOCAL-VERIFY-v1",
+  "repo": {
+    "path": "C:\\Users\\Paul Wynn\\github\\wyneos-core",
+    "remote": "https://github.com/Wynergy-Fibre-Solutions/wfsl-cloudflare-guard.git",
+    "head": "72f376afaff1c8effc696bb6179b2849356503fd"
+  },
+  "timestamp_utc": "2026-01-18T00-00-41-583Z",
+  "checks": {
+    "required_files_present": false,
+    "missing_files": [
+      "LICENSE",
+      "README.md"
+    ],
+    "license_apache_2_0_detected": false
+  },
+  "artifacts": {
+    "required_files": [
+      {
+        "path": "LICENSE",
+        "exists": false,
+        "sha256": ""
+      },
+      {
+        "path": "README.md",
+        "exists": false,
+        "sha256": ""
+      },
+      {
+        "path": "GOVERNANCE.md",
+        "exists": true,
+        "sha256": "3975f6fcb6d01cb5b0085be40d5aba77197ed030071443cc19e200291735e5e3"
+      },
+      {
+        "path": "VERIFICATION.md",
+        "exists": true,
+        "sha256": "ce6f16eb13d4acc4f9e0d4a92c30bd83cb7ec0bc6504f6a04420c34d8f2b6c69"
+      }
+    ]
+  },
+  "outcome": {
+    "pass": false
+  }
+}
