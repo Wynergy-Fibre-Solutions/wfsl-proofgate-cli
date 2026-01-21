@@ -1,0 +1,48 @@
+// wfsl-evidence-guard/scripts/verify-receipt.ts
+
+import * as fs from "fs";
+import { createHash } from "crypto";
+import { verifyReceipt, WfslError } from "wfsl-licence-core";
+
+function hashFile(filePath: string): string {
+  const buf = fs.readFileSync(filePath);
+  const h = createHash("sha256").update(buf).digest("hex");
+  return `sha256:${h}`;
+}
+
+function main() {
+  if (!fs.existsSync("evidence.receipt.json")) {
+    throw new Error("Missing evidence.receipt.json");
+  }
+
+  if (!fs.existsSync("evidence.json")) {
+    throw new Error("Missing evidence.json");
+  }
+
+  const raw = JSON.parse(fs.readFileSync("evidence.receipt.json", "utf8"));
+  const { receipt, signature } = raw;
+
+  const verified = verifyReceipt(receipt, signature);
+
+  const actualHash = hashFile("evidence.json");
+  if (verified.outputHash !== actualHash) {
+    throw new Error("Output hash mismatch: evidence has been tampered with");
+  }
+
+  console.log("Receipt verified.");
+  console.log("Licence subject:", verified.licenceSubject);
+  console.log("Plan:", verified.plan);
+  console.log("Tool:", verified.tool, verified.toolVersion);
+  console.log("Issued at:", verified.issuedAt);
+}
+
+try {
+  main();
+} catch (err) {
+  if (err instanceof WfslError) {
+    console.error(err.message);
+    process.exit(err.exitCode);
+  }
+  console.error(err?.message ?? err);
+  process.exit(99);
+}

@@ -1,0 +1,31 @@
+{
+  "name": "wfsl-proofgate-cli",
+  "version": "0.1.0",
+  "description": "WFSL ProofGate CLI — deterministic verification runner with stable exit codes.",
+  "type": "module",
+  "private": false,
+  "license": "MIT",
+  "bin": {
+    "wfsl-proofgate": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "scripts",
+    ".github"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "node --enable-source-maps dist/index.js",
+    "test": "npm run build && node ./scripts/selftest.mjs",
+    "verify:manifest": "node ./dist/index.js verify --manifest ./proofgate.manifest.json",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "tweetnacl": "^1.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}
