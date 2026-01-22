@@ -3,18 +3,11 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import nacl from "tweetnacl";
 import { ExitCode, fail } from "../lib/exit-codes.js";
+import { runRepoGuard } from "../lib/repo-guard.js";
 
 type VerifyResult =
   | { ok: true; reason: string; details?: Record<string, unknown> }
   | { ok: false; reason: string; details?: Record<string, unknown> };
-
-type RepoGuardVerdict = {
-  repoState: "VALID" | "INVALID";
-  lockfile: "IN_SYNC" | "OUT_OF_SYNC" | "NOT_REQUIRED";
-  gitignore: "TRACKED" | "MISSING" | "UNTRACKED" | "NOT_REQUIRED";
-  buildOutput: "IGNORED" | "TRACKED" | "NOT_APPLICABLE";
-  violations: string[];
-};
 
 function readFileStrict(p: string, label: string): Buffer {
   try {
@@ -32,144 +25,194 @@ function parseJsonStrict(buf: Buffer, label: string): any {
   }
 }
 
-function execGit(cmd: string): string {
-  const { execSync } = require("node:child_process");
-  return execSync(cmd, { stdio: ["ignore", "pipe", "ignore"] })
-    .toString("utf8")
-    .trim();
+function cleanBase64FromFile(filePath: string, label: string): string {
+  const raw = readFileStrict(filePath, label);
+  return raw.toString("ascii").replace(/[^A-Za-z0-9+/=]/g, "");
 }
 
-function enforceRepoGuard(manifestPath: string): RepoGuardVerdict {
-  const violations: string[] = [];
-  const baseDir = path.dirname(manifestPath);
-
-  const manifest = parseJsonStrict(
-    readFileStrict(manifestPath, "manifest"),
-    "manifest"
-  );
-
-  const guard = manifest.repoGuard;
-  if (!guard) {
-    return {
-      repoState: "VALID",
-      lockfile: "NOT_REQUIRED",
-      gitignore: "NOT_REQUIRED",
-      buildOutput: "NOT_APPLICABLE",
-      violations: []
-    };
-  }
-
-  // --- gitignore enforcement ---
-  let gitignoreStatus: RepoGuardVerdict["gitignore"] = "NOT_REQUIRED";
-  if (guard.git?.requireGitignore) {
-    const giPath = path.join(baseDir, ".gitignore");
-    if (!fs.existsSync(giPath)) {
-      gitignoreStatus = "MISSING";
-      violations.push(".gitignore missing");
-    } else {
-      const tracked = execGit("git ls-files --error-unmatch .gitignore");
-      gitignoreStatus = tracked ? "TRACKED" : "UNTRACKED";
-      if (gitignoreStatus === "UNTRACKED") {
-        violations.push(".gitignore exists but is not tracked");
-      }
-    }
-  }
-
-  // --- lockfile enforcement ---
-  let lockfileStatus: RepoGuardVerdict["lockfile"] = "NOT_REQUIRED";
-  if (guard.dependencies?.lockfileRequired) {
-    const pkg = path.join(baseDir, "package.json");
-    const lock = path.join(baseDir, "package-lock.json");
-    if (!fs.existsSync(pkg) || !fs.existsSync(lock)) {
-      lockfileStatus = "OUT_OF_SYNC";
-      violations.push("package.json or package-lock.json missing");
-    } else {
-      lockfileStatus = "IN_SYNC";
-    }
-  }
-
-  // --- build output enforcement ---
-  let buildStatus: RepoGuardVerdict["buildOutput"] = "NOT_APPLICABLE";
-  if (guard.build?.output && typeof guard.build.tracked === "boolean") {
-    const output = guard.build.output;
-    const tracked =
-      execGit(`git ls-files ${output}`).length > 0;
-
-    if (guard.build.tracked === false && tracked) {
-      buildStatus = "TRACKED";
-      violations.push(`build output '${output}' is tracked but must be ignored`);
-    } else if (guard.build.tracked === false) {
-      buildStatus = "IGNORED";
-    } else {
-      buildStatus = "TRACKED";
-    }
-  }
-
-  return {
-    repoState: violations.length === 0 ? "VALID" : "INVALID",
-    lockfile: lockfileStatus,
-    gitignore: gitignoreStatus,
-    buildOutput: buildStatus,
-    violations
-  };
-}
-
-function cleanBase64FromFile(filePath: string): string {
-  return readFileStrict(filePath, "base64").toString("ascii").replace(/[^A-Za-z0-9+/=]/g, "");
+function cleanBase64Inline(value: string): string {
+  return String(value ?? "").toString().replace(/[^A-Za-z0-9+/=]/g, "");
 }
 
 function b64ToU8(b64: string, label: string): Uint8Array {
   try {
-    return new Uint8Array(Buffer.from(b64, "base64"));
+    const raw = Buffer.from(b64, "base64");
+    return new Uint8Array(raw);
   } catch {
     fail(ExitCode.InvalidInput, `INVALID_INPUT: ${label} is not valid base64`);
   }
 }
 
-function fallbackVerify(manifestPath: string, publicKeyPath?: string): VerifyResult {
+function normalisePath(p: string, baseDir: string): string {
+  return path.isAbsolute(p) ? p : path.resolve(baseDir, p);
+}
+
+function isVerifyResult(x: any): x is VerifyResult {
+  if (!x || typeof x !== "object") return false;
+  if (typeof x.ok !== "boolean") return false;
+  if (typeof x.reason !== "string") return false;
+  if ("details" in x && x.details != null && typeof x.details !== "object") return false;
+  return true;
+}
+
+async function tryExternalVerifier(
+  verifierArg: string | undefined,
+  manifestPath: string,
+  publicKeyPath: string | undefined
+): Promise<VerifyResult | null> {
+  if (!verifierArg) return null;
+
+  const token = String(verifierArg).trim();
+  if (!token || token.toLowerCase() === "none") return null;
+
+  const candidate = path.resolve(process.cwd(), token);
+  if (!fs.existsSync(candidate)) {
+    return { ok: false, reason: `external verifier not found at ${candidate}` };
+  }
+
+  try {
+    const mod = await import(pathToFileURL(candidate).toString());
+    const fn =
+      (mod.verifyExternalManifest as any) ??
+      (mod.verify as any) ??
+      (mod.default as any);
+
+    if (typeof fn !== "function") {
+      return {
+        ok: false,
+        reason: "external verifier loaded but no valid export found (verifyExternalManifest, verify, or default)"
+      };
+    }
+
+    const res = await fn(manifestPath, { publicKeyPath });
+    if (!isVerifyResult(res)) {
+      return {
+        ok: false,
+        reason: "external verifier returned invalid result shape (expected { ok: boolean, reason: string, details?: object })"
+      };
+    }
+
+    return res;
+  } catch (e: any) {
+    return { ok: false, reason: `external verifier threw: ${String(e?.message ?? e)}` };
+  }
+}
+
+function fallbackVerify(manifestPath: string, publicKeyPathArg?: string): VerifyResult {
   const baseDir = path.dirname(manifestPath);
   const manifest = parseJsonStrict(readFileStrict(manifestPath, "manifest"), "manifest");
 
-  const msg = readFileStrict(path.resolve(baseDir, manifest.messageFile), "messageFile");
-  const sig = b64ToU8(
-    cleanBase64FromFile(path.resolve(baseDir, manifest.signatureFile)),
-    "signature"
-  );
-  const pk = b64ToU8(
-    publicKeyPath
-      ? cleanBase64FromFile(publicKeyPath)
-      : cleanBase64FromFile(path.resolve(baseDir, manifest.publicKeyFile)),
-    "publicKey"
-  );
+  const messageFile = String(manifest.messageFile ?? "");
+  if (!messageFile) return { ok: false, reason: "manifest missing required field: messageFile" };
+
+  const msg = readFileStrict(normalisePath(messageFile, baseDir), "messageFile");
+
+  let signatureB64 = "";
+  if (typeof manifest.signatureFile === "string" && manifest.signatureFile.length > 0) {
+    signatureB64 = cleanBase64FromFile(normalisePath(manifest.signatureFile, baseDir), "signatureFile");
+  } else if (typeof manifest.signatureB64 === "string" && manifest.signatureB64.length > 0) {
+    signatureB64 = cleanBase64Inline(manifest.signatureB64);
+  }
+  if (!signatureB64) return { ok: false, reason: "no signature provided (signatureFile or signatureB64)" };
+
+  const sig = b64ToU8(signatureB64, "signature");
+  if (sig.length !== 64) {
+    return { ok: false, reason: `signature must be 64 bytes (Ed25519 detached). Got ${sig.length} bytes.` };
+  }
+
+  let pkB64 = "";
+  if (publicKeyPathArg) {
+    pkB64 = cleanBase64FromFile(normalisePath(publicKeyPathArg, process.cwd()), "public key");
+  } else if (typeof manifest.publicKeyFile === "string" && manifest.publicKeyFile.length > 0) {
+    pkB64 = cleanBase64FromFile(normalisePath(manifest.publicKeyFile, baseDir), "publicKeyFile");
+  } else if (typeof manifest.publicKeyB64 === "string" && manifest.publicKeyB64.length > 0) {
+    pkB64 = cleanBase64Inline(manifest.publicKeyB64);
+  }
+  if (!pkB64) return { ok: false, reason: "no public key provided (--public-key, publicKeyFile, or publicKeyB64)" };
+
+  const pk = b64ToU8(pkB64, "public key");
+  if (pk.length !== 32) {
+    return { ok: false, reason: `public key must be 32 bytes (Ed25519). Got ${pk.length} bytes.` };
+  }
 
   const ok = nacl.sign.detached.verify(new Uint8Array(msg), sig, pk);
-  return ok
-    ? { ok: true, reason: "verified", details: { verifier: "builtin" } }
-    : { ok: false, reason: "signature verification failed" };
+  if (!ok) return { ok: false, reason: "signature verification failed" };
+
+  return { ok: true, reason: "verified", details: { verifier: "builtin-fallback" } };
+}
+
+function parseArgs(argv: string[]) {
+  const out: any = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--manifest") out.manifestPath = argv[++i];
+    else if (a === "--public-key") out.publicKeyPath = argv[++i];
+    else if (a === "--verifier") out.verifierPath = argv[++i];
+    else if (a === "--help" || a === "-h") out.help = true;
+    else {
+      out.unknown ??= [];
+      out.unknown.push(a);
+    }
+  }
+  return out;
 }
 
 export async function runVerify(argv: string[]): Promise<void> {
-  const i = argv.indexOf("--manifest");
-  if (i === -1 || !argv[i + 1]) {
+  const args = parseArgs(argv);
+
+  if (args.help) {
+    process.stdout.write(
+      [
+        "WFSL ProofGate — verify",
+        "",
+        "Usage:",
+        "  wfsl-proofgate verify --manifest <path> [--public-key <path>] [--verifier <path|none>]",
+        "",
+        "Repo Guard:",
+        "  Runs before verification when manifest contains repoGuard.",
+        "",
+        "Exit codes:",
+        "  0  OK",
+        "  10 USAGE",
+        "  20 VERIFY_FAILED",
+        "  30 INTERNAL_ERROR",
+        "  40 NOT_FOUND",
+        "  41 INVALID_INPUT",
+        "  42 PARSE_ERROR",
+        ""
+      ].join("\n")
+    );
+    process.exit(ExitCode.Ok);
+  }
+
+  if (Array.isArray(args.unknown) && args.unknown.length > 0) {
+    fail(ExitCode.Usage, `USAGE: unknown args: ${args.unknown.join(" ")}`);
+  }
+
+  if (!args.manifestPath) {
     fail(ExitCode.Usage, "USAGE: --manifest <path> is required");
   }
 
-  const manifestPath = path.resolve(process.cwd(), argv[i + 1]);
+  const manifestPath = path.resolve(process.cwd(), args.manifestPath);
+  if (!fs.existsSync(manifestPath)) {
+    fail(ExitCode.NotFound, `NOT_FOUND: manifest not found at ${manifestPath}`);
+  }
 
-  const verdict = enforceRepoGuard(manifestPath);
+  const verdict = runRepoGuard(manifestPath);
   if (verdict.repoState === "INVALID") {
-    process.stderr.write(
-      `REPO_GUARD_FAILED\n${JSON.stringify(verdict, null, 2)}\n`
-    );
+    process.stderr.write(`REPO_GUARD_FAILED\n${JSON.stringify(verdict, null, 2)}\n`);
     process.exit(ExitCode.VerifyFailed);
   }
 
-  const result = fallbackVerify(manifestPath);
-  if (!result.ok) {
-    process.stderr.write(`VERIFY_FAILED: ${result.reason}\n`);
-    process.exit(ExitCode.VerifyFailed);
+  const external = await tryExternalVerifier(args.verifierPath, manifestPath, args.publicKeyPath);
+  const result = external ?? fallbackVerify(manifestPath, args.publicKeyPath);
+
+  if (result.ok) {
+    process.stdout.write(`OK: ${result.reason}\n`);
+    process.exit(ExitCode.Ok);
   }
 
-  process.stdout.write(`OK: ${result.reason}\n`);
-  process.exit(ExitCode.Ok);
+  process.stderr.write(`VERIFY_FAILED: ${result.reason}\n`);
+  if (result.details) process.stderr.write(`${JSON.stringify(result.details)}\n`);
+  process.exit(ExitCode.VerifyFailed);
 }
