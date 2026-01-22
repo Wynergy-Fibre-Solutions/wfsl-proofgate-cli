@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WFSL ProofGate Manifest",
+  "description": "Deterministic governance manifest for WFSL ProofGate CLI repositories",
+  "type": "object",
+  "required": ["version", "repoGuard"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "repoGuard": {
+      "type": "object",
+      "required": ["build", "dependencies", "git"],
+      "properties": {
+        "build": {
+          "type": "object",
+          "required": ["output", "tracked"],
+          "properties": {
+            "output": {
+              "type": "string",
+              "description": "Build output directory"
+            },
+            "tracked": {
+              "type": "boolean",
+              "description": "Whether build output is allowed to be tracked by git"
+            }
+          }
+        },
+        "dependencies": {
+          "type": "object",
+          "required": ["lockfileRequired"],
+          "properties": {
+            "lockfileRequired": {
+              "type": "boolean",
+              "description": "Fail if package-lock.json is missing or out of sync"
+            }
+          }
+        },
+        "git": {
+          "type": "object",
+          "required": ["requireGitignore"],
+          "properties": {
+            "requireGitignore": {
+              "type": "boolean",
+              "description": "Fail if .gitignore is missing or untracked"
+            }
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}
