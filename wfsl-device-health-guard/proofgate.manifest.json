@@ -1,0 +1,18 @@
+{
+  "name": "wfsl-device-health-guard",
+  "version": "0.1.0",
+  "description": "WFSL Device Health Guard proof manifest.",
+  "owner": "Wynergy Fibre Solutions Ltd",
+  "scope": "device-health",
+  "tier": "opencore",
+  "entrypoint": "dist/index.js",
+  "artefacts": [
+    "wfsl.health.report.json",
+    "wfsl.health.report.sha256"
+  ],
+  "determinism": {
+    "inputs": "system-state",
+    "outputs": "deterministic-json",
+    "hash": "sha256"
+  }
+}
