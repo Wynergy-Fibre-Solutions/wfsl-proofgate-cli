@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wfsl.uk/schema/wfsl.health.report.schema.json",
+  "title": "WFSL Device Health Report",
+  "description": "Deterministic health report emitted by WFSL Device Health Guard probes.",
+  "type": "object",
+  "required": ["tool", "version", "generatedAt", "data"],
+  "properties": {
+    "tool": {
+      "type": "string",
+      "const": "wfsl-device-health-guard"
+    },
+    "version": {
+      "type": "string"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "data": {
+      "type": "object",
+      "required": ["probes"],
+      "properties": {
+        "probes": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/powershellFormattingProbe"
+              },
+              {
+                "$ref": "#/$defs/defenderPressureProbe"
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "powershellFormattingProbe": {
+      "type": "object",
+      "required": ["probe", "status", "findings", "scannedAt"],
+      "properties": {
+        "probe": {
+          "type": "string",
+          "const": "powershell-formatting"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["PASS", "WARN"]
+        },
+        "scannedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["file", "exists"],
+            "properties": {
+              "file": {
+                "type": "string"
+              },
+              "exists": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "defenderPressureProbe": {
+      "type": "object",
+      "required": ["probe", "status", "findings", "scannedAt"],
+      "properties": {
+        "probe": {
+          "type": "string",
+          "const": "defender-pressure"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["PASS", "WARN"]
+        },
+        "scannedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "process",
+              "workingSetMB",
+              "thresholdMB",
+              "exceedsThreshold"
+            ],
+            "properties": {
+              "process": {
+                "type": "string"
+              },
+              "workingSetMB": {
+                "type": "number"
+              },
+              "thresholdMB": {
+                "type": "number"
+              },
+              "exceedsThreshold": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
