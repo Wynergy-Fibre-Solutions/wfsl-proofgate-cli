@@ -1,68 +1,96 @@
-\# WFSL ProofGate CLI
+Commercial use requires a WFSL licence. See commercial-wfsl-offerings/HOW-TO-BUY.md.
 
+# WFSL ProofGate CLI
 
+## Purpose
 
-Deterministic proof generation and verification command-line interface for WFSL systems.
+WFSL ProofGate CLI is the primary operator-facing command-line interface for interacting with the WFSL platform.
 
+It orchestrates evidence consumption, admission checks, and verification flows by coordinating upstream WFSL components and presenting explicit, auditable outcomes.
 
+This tool is the **controlled entry point** for demonstrations, operator workflows, and system-level validation.
 
-WFSL ProofGate CLI provides controlled tooling for generating, sealing, and validating proof artefacts used across WFSL governance, verification, and audit workflows.
+---
 
+## Functional Guarantees
 
+WFSL ProofGate CLI provides:
 
-All operations are deterministic and produce machine-verifiable outputs suitable for automated inspection.
+- Deterministic command execution
+- Explicit input and output boundaries
+- Evidence-referenced operations
+- Machine-verifiable results suitable for audit and replay
 
+All operations are declarative and traceable.
 
+---
 
-\## Capabilities
+## What This Component Does Not Do
 
-\- Proof artefact generation
+WFSL ProofGate CLI explicitly does **not**:
 
-\- Deterministic sealing and hashing
+- Emit primary truth
+- Generate evidence independently
+- Perform inference
+- Bypass admission or verification layers
+- Execute uncontrolled system actions
 
-\- Verification of WFSL evidence and proofs
+It coordinates and reports only.
 
-\- Structured output for audit pipelines
+---
 
-\- Integration with WFSL governance and verification layers
+## Evidence and Dependency Flow
 
+WFSL ProofGate CLI consumes and coordinates outputs from:
 
+- wfsl-evidence-guard (Platform Tier-0)
+- wfsl-shell-guard (Platform Tier-1), when available
+- wfsl-admission-guard (Platform Tier-2), when available
 
-\## Scope
+If required upstream components are missing or unverifiable, commands must fail explicitly.
 
-WFSL ProofGate CLI operates strictly as a proof interaction interface.
+---
 
-It does not define policy, enforcement rules, or business logic.
+## Classification and Licence
 
+**Classification:** WFSL Open  
+**Licence:** Apache License 2.0
 
+This repository is open-source and auditable.  
+It represents the principal interface layer for WFSL platform interaction.
 
-This component executes declared workflows and emits verifiable artefacts only.
+---
 
+## Execution and Verification
 
+Execution characteristics:
 
-\## Intended users
+- Deterministic command parsing
+- Structured, replayable outputs
+- Offline-capable verification
+- Explicit success or failure states
 
-\- WFSL core systems
+Verification consists of re-running commands with identical inputs and confirming identical outputs.
 
-\- Licensed WFSL services
+---
 
-\- Internal audit, verification, and governance pipelines
+## Role in the WFSL Platform
 
+WFSL ProofGate CLI occupies a **coordination tier** above evidence, boundary, and admission layers.
 
+It is used by:
 
-This component is not intended for end users or standalone commercial deployment without WFSL context.
+- Operators
+- Test harnesses
+- Demonstration environments
+- Governance workflows
 
+No WFSL demonstration or operator interaction should occur without passing through this interface.
 
+---
 
-\## Licence tier
+## Stability
 
-WFSL-PAID
+This repository is considered **active** once command determinism and dependency validation are verified.
 
-
-
-This repository forms part of WFSL’s licensed proof and verification infrastructure.
-
-Commercial use requires an appropriate WFSL licence.
-
-
-
+Behavioural changes require explicit versioning and proof.
