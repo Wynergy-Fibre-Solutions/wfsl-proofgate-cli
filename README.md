@@ -1,7 +1,3 @@
-\# WFSL ProofGate CLI
-
-
-
 \## Purpose
 
 
@@ -184,5 +180,25 @@ This repository is considered \*\*active\*\* once command determinism and depend
 
 Behavioural changes require explicit versioning and proof.
 
+---
 
+## WFSL Platform Membership
 
+**Platforms:**  
+- WFSL Evidence Platform  
+- WFSL Verification Platform  
+
+**Role:**  
+Provides deterministic command-line tooling for generating, validating, and reporting verification artefacts across WFSL platforms.
+
+**Guarantees:**  
+- Deterministic artefact generation  
+- Evidence integrity validation  
+- Verifiable status outputs  
+- No behavioural inference  
+- No hidden control or telemetry  
+
+**Boundary:**  
+This repository operates within WFSL evidence and verification boundaries and does not perform surveillance, attribution, or policy enforcement.
+
+See: WFSL-PLATFORM-INDEX.md
