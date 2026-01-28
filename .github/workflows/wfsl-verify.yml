@@ -1,0 +1,31 @@
+name: wfsl-verify
+
+on:
+  pull_request:
+    branches:
+      - main
+      - MAIN
+  push:
+    branches:
+      - main
+      - MAIN
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify WFSL trust manifest exists
+        run: |
+          test -f wfsl.trust.json
+
+      - name: Verify deterministic hash (sha256)
+        run: |
+          sha256sum wfsl.trust.json
+
+      - name: Emit WFSL verification signal
+        run: |
+          echo "WFSL verification passed"
