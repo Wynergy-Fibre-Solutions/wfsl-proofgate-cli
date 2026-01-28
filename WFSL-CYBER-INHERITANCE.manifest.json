@@ -1,0 +1,20 @@
+{
+  "wfsl": {
+    "product": "wfsl-proofgate-cli",
+    "tier": "verification",
+    "inherits": "wfsl-cyber",
+    "inheritanceTag": "cyber-inherited-v1",
+    "authority": true
+  },
+  "constraints": {
+    "evidenceOnly": true,
+    "noInterception": true,
+    "noAttribution": true,
+    "noFingerprinting": true
+  },
+  "governance": {
+    "licence": "WFSL Cyber Licence",
+    "boundaryEnforced": true,
+    "separateEntityRequiredForSurveillance": true
+  }
+}
