@@ -24,6 +24,25 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Import WFSL GPG public key
+        run: |
+          cat << 'EOF' > wfsl.asc
+          -----BEGIN PGP PUBLIC KEY BLOCK-----
+
+          mDMEaVXjKxYJKwYBBAHaRw8BAQdADdBVoYDWU8gN6xmgE8PSSFeFu+6DlIxQhEcH
+          uMXefwq0GlBhdWwgV3lubiA8d2ZzbEBwcm90b24ubWU+iJkEExYKAEEWIQTtudNT
+          79xEaemmJrZ9tYZ5Hu6Z8AUCaVXkBAIbAwUJFRgAAAULCQgHAgIiAgYVCgkICwIE
+          FgIDAQIeBwIXgAAKCRB9tYZ5Hu6Z8HqmAP4rLzRONJIHo1w4AUYcnozzZ2m5Vm8B
+          Q7gEKlRbGO9qXwD/ZhV1ZP0Ec2qKzEHP+a3JY3EVd3YY3kvcQ5KSvP+rCwC4OARp
+          VeMrEgorBgEEAZdVAQUBAQdAY+lBdf7CcqGlkUGSznshdtcGOMnQ7ep71jaapfuC
+          kVkDAQgHiH4EGBYKACYWIQTtudNT79xEaemmJrZ9tYZ5Hu6Z8AUCaVXjKwIbDAUJ
+          FRgAAAAKCRB9tYZ5Hu6Z8IUmAP9xBh12OHPE5CdLHq5BseS4I93i5EDdWc4v9d6/
+          +kzIaAD/detBH4A+4nD8ZuG91snlgXqYH71sePdKm/FaiegO0gs=
+          =zYx7
+          -----END PGP PUBLIC KEY BLOCK-----
+          EOF
+          gpg --import wfsl.asc
+
       - name: Verify signed HEAD commit
         run: |
           git log --show-signature -1 | tee signature.txt
