@@ -1,0 +1,8 @@
+{
+  "wfsl": {
+    "component": "wfsl-proofgate-cli",
+    "phase": "phase-1",
+    "type": "spec"
+  },
+  "freeze": false
+}
