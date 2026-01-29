@@ -1,0 +1,40 @@
+name: WFSL RepoGuard Phase-1 Verification
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Verify signed HEAD commit
+        run: |
+          git log --show-signature -1 | tee signature.txt
+          grep -q "Good signature" signature.txt
+
+      - name: Run RepoGuard Phase-1 verifier
+        run: |
+          node src/index.ts | tee repo-guard.verdict.json
+
+      - name: Upload RepoGuard verdict
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-guard-verdict
+          path: repo-guard.verdict.json
