@@ -1,0 +1,8 @@
+{
+  "wfsl": {
+    "repository": "wfsl-proofgate-cli",
+    "role": "deterministic proof orchestration",
+    "governance": "sealed",
+    "baseline": "2026-02-01"
+  }
+}
